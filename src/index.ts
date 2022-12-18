@@ -13,7 +13,7 @@ export interface Env {
   // MY_KV_NAMESPACE: KVNamespace;
   //
   // Example binding to Durable Object. Learn more at https://developers.cloudflare.com/workers/runtime-apis/durable-objects/
-  COUNTER: DurableObjectNamespace;
+  CHAT: DurableObjectNamespace;
   //
   // Example binding to R2. Learn more at https://developers.cloudflare.com/workers/runtime-apis/r2/
   // MY_BUCKET: R2Bucket;
@@ -22,38 +22,50 @@ export interface Env {
 // @ts-ignore
 import home from './home.html';
 
-function handleHome() {
-  return new Response(home, {
-    headers: {
-      'Content-Type': 'text/html;chartset=utf-8',
-    },
-  });
-}
-
-function handleNotFound() {
-  return new Response(null, {
-    status: 404,
-  });
-}
-
-export class CounterObject {
-  counter: number;
-  constructor() {
-    this.counter = 0;
+export class ChatRoom {
+  state: DurableObjectState;
+  constructor(state: DurableObjectState, env: Env) {
+    this.state = state;
   }
+
+  handleHome() {
+    return new Response(home, {
+      headers: {
+        'Content-Type': 'text/html;chartset=utf-8',
+      },
+    });
+  }
+
+  handleNotFound() {
+    return new Response(null, {
+      status: 404,
+    });
+  }
+
+  handleWebSocket(webSocket: WebSocket) {
+    webSocket.accept();
+    webSocket.send(JSON.stringify({ message: 'hello from backend' }));
+  }
+
+  // browser - server webSocket connect
+  handleConnect(request: Request) {
+    const pairs = new WebSocketPair();
+    this.handleWebSocket(pairs[1]); // backend
+    return new Response(null, {
+      status: 101, // switch protocol http -> ws
+      webSocket: pairs[0], // browser
+    });
+  }
+
   async fetch(request: Request) {
     const { pathname } = new URL(request.url);
     switch (pathname) {
       case '/':
-        return new Response(JSON.stringify({ counter: this.counter }));
-      case '/+':
-        this.counter++;
-        return new Response(JSON.stringify({ counter: this.counter }));
-      case '/-':
-        this.counter--;
-        return new Response(JSON.stringify({ counter: this.counter }));
+        return this.handleHome();
+      case '/connect':
+        return this.handleConnect(request);
       default:
-        return handleNotFound();
+        return this.handleNotFound();
     }
   }
 }
@@ -64,9 +76,9 @@ export default {
     env: Env,
     ctx: ExecutionContext
   ): Promise<Response> {
-    const id = env.COUNTER.idFromName('counter');
+    const id = env.CHAT.idFromName('CHAT');
     // durable object가 있다면 반환하고, 없으면 생성하고 초기화
-    const durableObject = env.COUNTER.get(id);
+    const durableObject = env.CHAT.get(id);
     const response = await durableObject.fetch(request);
     return response;
   },

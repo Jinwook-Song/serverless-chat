@@ -82,3 +82,96 @@ export default {
   },
 };
 ```
+
+---
+
+### Connect websocket
+
+home.html
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/@picocss/pico@latest/css/pico.min.css"
+    />
+
+    <title>Chat</title>
+  </head>
+  <body class="container">
+    <h1>Chat</h1>
+    <button>Connect</button>
+    <script>
+      const button = document.querySelector('button');
+      button.addEventListener('click', () => {
+        const socket = new WebSocket(`ws://${window.location.host}/connect`);
+
+        socket.addEventListener('open', () => {
+          console.log('✅ connected');
+        });
+
+        socket.addEventListener('message', (event) => {
+          console.log(event.data);
+        });
+      });
+    </script>
+  </body>
+</html>
+```
+
+index.ts
+
+```tsx
+export class ChatRoom {
+  state: DurableObjectState;
+  constructor(state: DurableObjectState, env: Env) {
+    this.state = state;
+  }
+
+  handleHome() {
+    return new Response(home, {
+      headers: {
+        'Content-Type': 'text/html;chartset=utf-8',
+      },
+    });
+  }
+
+  handleNotFound() {
+    return new Response(null, {
+      status: 404,
+    });
+  }
+
+  handleWebSocket(webSocket: WebSocket) {
+    webSocket.accept();
+    webSocket.send(JSON.stringify({ message: 'hello from backend' }));
+  }
+
+  // browser - server webSocket connect
+  handleConnect(request: Request) {
+    const pairs = new WebSocketPair();
+    this.handleWebSocket(pairs[1]); // backend
+    return new Response(null, {
+      status: 101, // switch protocol http -> ws
+      webSocket: pairs[0], // browser
+    });
+  }
+
+  async fetch(request: Request) {
+    const { pathname } = new URL(request.url);
+    switch (pathname) {
+      case '/':
+        return this.handleHome();
+      case '/connect':
+        return this.handleConnect(request);
+      default:
+        return this.handleNotFound();
+    }
+  }
+}
+```

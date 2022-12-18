@@ -4,5 +4,5 @@ compatibility_date = "2022-12-16"
 
 [durable_objects]
 bindings = [
-    {name = 'COUNTER', class_name = 'CounterObject'}
+    {name = 'CHAT', class_name = 'ChatRoom'}
 ]
