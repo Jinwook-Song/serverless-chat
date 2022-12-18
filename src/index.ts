@@ -24,8 +24,12 @@ import home from './home.html';
 
 export class ChatRoom {
   state: DurableObjectState;
+  users: WebSocket[];
+  messages: string[];
   constructor(state: DurableObjectState, env: Env) {
     this.state = state;
+    this.users = [];
+    this.messages = [];
   }
 
   handleHome() {
@@ -44,7 +48,14 @@ export class ChatRoom {
 
   handleWebSocket(webSocket: WebSocket) {
     webSocket.accept();
-    webSocket.send(JSON.stringify({ message: 'hello from backend' }));
+    this.users.push(webSocket);
+    webSocket.send(JSON.stringify({ message: '✨ connection completed' }));
+    this.messages.forEach((message) => webSocket.send(message));
+
+    webSocket.addEventListener('message', (event) => {
+      this.messages.push(event.data.toString());
+      this.users.forEach((user) => user.send(event.data));
+    });
   }
 
   // browser - server webSocket connect
