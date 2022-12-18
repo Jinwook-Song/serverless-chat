@@ -6,3 +6,7 @@ compatibility_date = "2022-12-16"
 bindings = [
     {name = 'CHAT', class_name = 'ChatRoom'}
 ]
+
+[[migrations]]
+tag = "v1" # Should be unique for each entry
+new_classes = ["ChatRoom"] # Array of new classes
